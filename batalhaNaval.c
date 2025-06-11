@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 // Desafio Batalha Naval - MateCheck
 // Este código inicial serve como base para o desenvolvimento do sistema de Batalha Naval.
@@ -9,6 +10,7 @@
 #define SHIP_SIZE 3   // Tamanho fixo dos navios (3 posições)
 #define WATER 0       // Representa água no tabuleiro
 #define SHIP 3        // Representa uma parte de um navio no tabuleiro
+#define SKILL_SIZE 5  // Tamanho da matriz da habilidade (5x5)
 
 // Enumeração para as orientações dos navios, tornando o código mais legível
 typedef enum {
@@ -17,6 +19,53 @@ typedef enum {
     DIAGONAL_PRINCIPAL, // Ex: (0,0), (1,1), (2,2) -> linha e coluna aumentam
     DIAGONAL_SECUNDARIA // Ex: (0,9), (1,8), (2,7) -> linha aumenta, coluna diminui
 } ShipOrientation;
+
+// Preenche a matriz do cone (5x5) usando loops e condicionais
+void buildCone(int skill[SKILL_SIZE][SKILL_SIZE]) {
+    for (int i = 0; i < SKILL_SIZE; i++) {
+        for (int j = 0; j < SKILL_SIZE; j++) {
+            // Para o cone, consideramos que os valores 1 formam um triângulo invertido na parte superior central
+            // i: linha (0 a 4), j: coluna (0 a 4)
+            int centro = SKILL_SIZE / 2;
+            // Regra: j está dentro do "triângulo" em função de i
+            if (j >= centro - i && j <= centro + i && i <= centro) {
+                skill[i][j] = 1;
+            } else {
+                skill[i][j] = 0;
+            }
+        }
+    }
+}
+
+// Preenche a matriz do octaedro (5x5)
+void buildOctahedron(int skill[SKILL_SIZE][SKILL_SIZE]) {
+    int centro = SKILL_SIZE / 2;
+    for (int i = 0; i < SKILL_SIZE; i++) {
+        for (int j = 0; j < SKILL_SIZE; j++) {
+            int dist = abs(i - centro) + abs(j - centro);
+            if (dist <= 2) {
+                skill[i][j] = 1;
+            } else {
+                skill[i][j] = 0;
+            }
+        }
+    }
+}
+
+// Preenche a matriz da cruz (5x5)
+void buildCross(int skill[SKILL_SIZE][SKILL_SIZE]) {
+    int centro = SKILL_SIZE / 2;
+    for (int i = 0; i < SKILL_SIZE; i++) {
+        for (int j = 0; j < SKILL_SIZE; j++) {
+            // Cruz: linha ou coluna é o centro
+            if (i == centro || j == centro) {
+                skill[i][j] = 1;
+            } else {
+                skill[i][j] = 0;
+            }
+        }
+    }
+}
 
 // Função para inicializar o tabuleiro com água (valor 0)
 void initializeBoard(int board[BOARD_SIZE][BOARD_SIZE]) {
@@ -116,9 +165,27 @@ void displayBoard(int board[BOARD_SIZE][BOARD_SIZE]) {
     for (int i = 0; i < BOARD_SIZE; i++) {
         printf("%2d|", i); // Imprime o número da linha
         for (int j = 0; j < BOARD_SIZE; j++) {
-            printf("%2d ", board[i][j]); // Imprime o valor da célula (0 para água, 3 para navio)
+            printf("%2d ", board[i][j]);
         }
         printf("\n"); // Nova linha após cada linha do tabuleiro
+    }
+}
+
+// Função para aplicar a skill no tabuleiro
+void applySkill(int board[BOARD_SIZE][BOARD_SIZE], int skill[SKILL_SIZE][SKILL_SIZE], int centerRow, int centerCol) {
+    int offset = SKILL_SIZE / 2;
+
+    for (int i = 0; i < SKILL_SIZE; i++) {
+        for (int j = 0; j < SKILL_SIZE; j++) {
+            if (skill[i][j] == 1) {
+                int boardRow = centerRow - offset + i;
+                int boardCol = centerCol - offset + j;
+
+                if (boardRow >= 0 && boardRow < BOARD_SIZE && boardCol >= 0 && boardCol < BOARD_SIZE) {
+                    board[boardRow][boardCol] = 1;
+                }
+            }
+        }
     }
 }
 
@@ -155,6 +222,7 @@ int main() {
     // 0 0 1 0 0
 
     int board[BOARD_SIZE][BOARD_SIZE]; // Declaração da matriz do tabuleiro
+    int skill[SKILL_SIZE][SKILL_SIZE]; // Declaração da matriz da skill
 
     // Inicializa o tabuleiro com água
     initializeBoard(board);
@@ -215,6 +283,25 @@ int main() {
 
     // Exibe o tabuleiro final com todos os navios posicionados
     printf("\n--- Tabuleiro Final do Jogo ---\n");
+    displayBoard(board);
+
+    // Define posições para skills com variáveis
+    int skill1_row = 2, skill1_col = 2;
+    buildCone(skill);
+    applySkill(board, skill, skill1_row, skill1_col);
+    printf("\n--- Após aplicar Habilidade Cone em (%d,%d) ---\n", skill1_row, skill1_col);
+    displayBoard(board);
+
+    int skill2_row = 5, skill2_col = 5;
+    buildOctahedron(skill);
+    applySkill(board, skill, skill2_row, skill2_col);
+    printf("\n--- Após aplicar Habilidade Octaedro em (%d,%d) ---\n", skill2_row, skill2_col);
+    displayBoard(board);
+
+    int skill3_row = 7, skill3_col = 7;
+    buildCross(skill);
+    applySkill(board, skill, skill3_row, skill3_col);
+    printf("\n--- Após aplicar Habilidade Cruz em (%d,%d) ---\n", skill3_row, skill3_col);
     displayBoard(board);
 
     return 0; // Retorna 0 para indicar que o programa foi executado com sucesso
