@@ -10,6 +10,14 @@
 #define WATER 0       // Representa água no tabuleiro
 #define SHIP 3        // Representa uma parte de um navio no tabuleiro
 
+// Enumeração para as orientações dos navios, tornando o código mais legível
+typedef enum {
+    HORIZONTAL,
+    VERTICAL,
+    DIAGONAL_PRINCIPAL, // Ex: (0,0), (1,1), (2,2) -> linha e coluna aumentam
+    DIAGONAL_SECUNDARIA // Ex: (0,9), (1,8), (2,7) -> linha aumenta, coluna diminui
+} ShipOrientation;
+
 // Função para inicializar o tabuleiro com água (valor 0)
 void initializeBoard(int board[BOARD_SIZE][BOARD_SIZE]) {
     for (int i = 0; i < BOARD_SIZE; i++) {
@@ -21,44 +29,69 @@ void initializeBoard(int board[BOARD_SIZE][BOARD_SIZE]) {
 
 // Função para verificar se um navio pode ser posicionado nas coordenadas dadas
 // sem sair dos limites do tabuleiro ou sobrepor outro navio.
-// orientation: 0 para horizontal, 1 para vertical
-int canPlaceShip(int board[BOARD_SIZE][BOARD_SIZE], int startRow, int startCol, int orientation) {
-    if (orientation == 0) { // Navio horizontal
-        // Verifica se o navio ultrapassa o limite direito do tabuleiro
-        if (startCol + SHIP_SIZE > BOARD_SIZE) {
-            return 0; // Não pode posicionar (fora dos limites)
+int canPlaceShip(int board[BOARD_SIZE][BOARD_SIZE], int startRow, int startCol, ShipOrientation orientation) {
+    // Loop para verificar cada célula que o navio ocuparia
+    for (int k = 0; k < SHIP_SIZE; k++) {
+        int currentRow = startRow;
+        int currentCol = startCol;
+
+        // Ajusta as coordenadas com base na orientação do navio
+        switch (orientation) {
+            case HORIZONTAL:
+                currentCol = startCol + k;
+                break;
+            case VERTICAL:
+                currentRow = startRow + k;
+                break;
+            case DIAGONAL_PRINCIPAL: // Linha e coluna aumentam
+                currentRow = startRow + k;
+                currentCol = startCol + k;
+                break;
+            case DIAGONAL_SECUNDARIA: // Linha aumenta, coluna diminui
+                currentRow = startRow + k;
+                currentCol = startCol - k; // Coluna diminui
+                break;
+            default:
+                return 0; // Orientação inválida
         }
-        // Verifica se há sobreposição com outro navio
-        for (int j = 0; j < SHIP_SIZE; j++) {
-            if (board[startRow][startCol + j] != WATER) {
-                return 0; // Não pode posicionar (há sobreposição)
-            }
+
+        // 1. Validação de Limites: Verifica se as coordenadas estão dentro do tabuleiro
+        if (currentRow < 0 || currentRow >= BOARD_SIZE ||
+            currentCol < 0 || currentCol >= BOARD_SIZE) {
+            return 0; // Fora dos limites do tabuleiro
         }
-    } else { // Navio vertical
-        // Verifica se o navio ultrapassa o limite inferior do tabuleiro
-        if (startRow + SHIP_SIZE > BOARD_SIZE) {
-            return 0; // Não pode posicionar (fora dos limites)
-        }
-        // Verifica se há sobreposição com outro navio
-        for (int i = 0; i < SHIP_SIZE; i++) {
-            if (board[startRow + i][startCol] != WATER) {
-                return 0; // Não pode posicionar (há sobreposição)
-            }
+
+        // 2. Validação de Sobreposição: Verifica se a célula já está ocupada por outro navio
+        if (board[currentRow][currentCol] != WATER) {
+            return 0; // Célula já ocupada (sobreposição)
         }
     }
     return 1; // Pode posicionar o navio
 }
 
-// Função para posicionar um navio no tabuleiro
-// orientation: 0 para horizontal, 1 para vertical
-void placeShip(int board[BOARD_SIZE][BOARD_SIZE], int startRow, int startCol, int orientation) {
-    if (orientation == 0) { // Navio horizontal
-        for (int j = 0; j < SHIP_SIZE; j++) {
-            board[startRow][startCol + j] = SHIP; // Marca as posições do navio
-        }
-    } else { // Navio vertical
-        for (int i = 0; i < SHIP_SIZE; i++) {
-            board[startRow + i][startCol] = SHIP; // Marca as posições do navio
+// Função para posicionar um navio no tabuleiro, marcando suas posições
+void placeShip(int board[BOARD_SIZE][BOARD_SIZE], int startRow, int startCol, ShipOrientation orientation) {
+    for (int k = 0; k < SHIP_SIZE; k++) {
+        int currentRow = startRow;
+        int currentCol = startCol;
+
+        // Ajusta as coordenadas com base na orientação do navio e marca a célula
+        switch (orientation) {
+            case HORIZONTAL:
+                board[currentRow][startCol + k] = SHIP;
+                break;
+            case VERTICAL:
+                board[startRow + k][currentCol] = SHIP;
+                break;
+            case DIAGONAL_PRINCIPAL:
+                board[startRow + k][startCol + k] = SHIP;
+                break;
+            case DIAGONAL_SECUNDARIA:
+                board[startRow + k][startCol - k] = SHIP;
+                break;
+            default:
+                // Não deve acontecer se canPlaceShip for chamado antes
+                break;
         }
     }
 }
@@ -68,7 +101,7 @@ void displayBoard(int board[BOARD_SIZE][BOARD_SIZE]) {
     // Imprime os números das colunas
     printf("   ");
     for (int col = 0; col < BOARD_SIZE; col++) {
-        printf("%2d ", col);
+        printf("%2d ", col); // Espaçamento para números de 0 a 9
     }
     printf("\n");
 
@@ -120,41 +153,67 @@ int main() {
     // 0 0 1 0 0
     // 1 1 1 1 1
     // 0 0 1 0 0
-        
+
     int board[BOARD_SIZE][BOARD_SIZE]; // Declaração da matriz do tabuleiro
 
     // Inicializa o tabuleiro com água
     initializeBoard(board);
 
-    // --- Navio 1: Horizontal ---
-    // Coordenadas e orientação do primeiro navio (definidos diretamente no código)
-    int ship1_startRow = 2;
-    int ship1_startCol = 1;
-    int ship1_orientation = 0; // 0 para horizontal
+    // --- Posicionamento dos Quatro Navios ---
 
-    // Valida e tenta posicionar o Navio 1
+    // Navio 1: Horizontal (NOVAS COORDENADAS para evitar sobreposição com diagonais)
+    // Movido para o meio do tabuleiro
+    int ship1_startRow = 5;
+    int ship1_startCol = 2;
+    ShipOrientation ship1_orientation = HORIZONTAL;
+
     if (canPlaceShip(board, ship1_startRow, ship1_startCol, ship1_orientation)) {
         placeShip(board, ship1_startRow, ship1_startCol, ship1_orientation);
-        printf("Navio 1 (Horizontal) posicionado com sucesso em (%d, %d)\n", ship1_startRow, ship1_startCol);
+        printf("Navio 1 (Horizontal) posicionado em (%d, %d)\n", ship1_startRow, ship1_startCol);
     } else {
-        printf("Erro: Não foi possível posicionar o Navio 1 (Horizontal) em (%d, %d). Verifique as coordenadas ou sobreposição.\n", ship1_startRow, ship1_startCol);
+        printf("ERRO: Não foi possível posicionar Navio 1 (Horizontal) em (%d, %d). Ajuste as coordenadas.\n", ship1_startRow, ship1_startCol);
     }
 
-    // --- Navio 2: Vertical ---
-    // Coordenadas e orientação do segundo navio (definidos diretamente no código)
-    int ship2_startRow = 4;
-    int ship2_startCol = 5;
-    int ship2_orientation = 1; // 1 para vertical
+    // Navio 2: Vertical (NOVAS COORDENADAS para evitar sobreposição com diagonais)
+    // Movido para a parte inferior direita
+    int ship2_startRow = 6;
+    int ship2_startCol = 7;
+    ShipOrientation ship2_orientation = VERTICAL;
 
-    // Valida e tenta posicionar o Navio 2
     if (canPlaceShip(board, ship2_startRow, ship2_startCol, ship2_orientation)) {
         placeShip(board, ship2_startRow, ship2_startCol, ship2_orientation);
-        printf("Navio 2 (Vertical) posicionado com sucesso em (%d, %d)\n", ship2_startRow, ship2_startCol);
+        printf("Navio 2 (Vertical) posicionado em (%d, %d)\n", ship2_startRow, ship2_startCol);
     } else {
-        printf("Erro: Não foi possível posicionar o Navio 2 (Vertical) em (%d, %d). Verifique as coordenadas ou sobreposição.\n", ship2_startRow, ship2_startCol);
+        printf("ERRO: Não foi possível posicionar Navio 2 (Vertical) em (%d, %d). Ajuste as coordenadas.\n", ship2_startRow, ship2_startCol);
     }
 
-    // Exibe o tabuleiro final com os navios posicionados
+    // Navio 3: Diagonal Principal (conforme a regra tabuleiro[i][i])
+    // Começa no canto superior esquerdo
+    int ship3_startRow = 0;
+    int ship3_startCol = 0;
+    ShipOrientation ship3_orientation = DIAGONAL_PRINCIPAL;
+
+    if (canPlaceShip(board, ship3_startRow, ship3_startCol, ship3_orientation)) {
+        placeShip(board, ship3_startRow, ship3_startCol, ship3_orientation);
+        printf("Navio 3 (Diagonal Principal) posicionado em (%d, %d)\n", ship3_startRow, ship3_startCol);
+    } else {
+        printf("ERRO: Não foi possível posicionar Navio 3 (Diagonal Principal) em (%d, %d). Ajuste as coordenadas.\n", ship3_startRow, ship3_startCol);
+    }
+
+    // Navio 4: Diagonal Secundária (conforme a regra tabuleiro[i][9-i])
+    // Começa no canto superior direito
+    int ship4_startRow = 0;
+    int ship4_startCol = 9;
+    ShipOrientation ship4_orientation = DIAGONAL_SECUNDARIA;
+
+    if (canPlaceShip(board, ship4_startRow, ship4_startCol, ship4_orientation)) {
+        placeShip(board, ship4_startRow, ship4_startCol, ship4_orientation);
+        printf("Navio 4 (Diagonal Secundária) posicionado em (%d, %d)\n", ship4_startRow, ship4_startCol);
+    } else {
+        printf("ERRO: Não foi possível posicionar Navio 4 (Diagonal Secundária) em (%d, %d). Ajuste as coordenadas.\n", ship4_startRow, ship4_startCol);
+    }
+
+    // Exibe o tabuleiro final com todos os navios posicionados
     printf("\n--- Tabuleiro Final do Jogo ---\n");
     displayBoard(board);
 
